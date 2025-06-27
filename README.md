@@ -17,6 +17,50 @@ A simple, fast, and safe `kubectl` plugin to manage container images in your Kub
     -   Set just the image tag with `set --tag`.
 -   **Clean & Simple**: A focused CLI that does one thing well. No unnecessary flags or complexity.
 
+## Usage
+
+The plugin follows the standard `kubectl` command structure.
+
+### Get Image
+
+Get the full image name of the first container in a resource.
+
+```sh
+# Get image of a deployment
+$ kubectl image get deployment my-app
+busybox:latest
+
+# Get image of a pod
+$ kubectl image get pod my-pod-12345
+busybox:latest
+```
+
+To get only the **tag** of the image:
+
+```sh
+$ kubectl image get deployment my-app --tag
+v1.2.3
+```
+
+### Set Image
+
+Update the image of the first container in a deployment.
+
+```sh
+# Set a full new image
+$ kubectl image set deployment my-app busybox:1.36
+Updating container my-app image from busybox:latest to busybox:1.36
+deployment.apps/my-app image updated
+
+# Update only the tag, keeping the base image name
+$ kubectl image set deployment my-app --tag 1.36.1
+Updating container my-app image from busybox:1.36 to busybox:1.36.1
+deployment.apps/my-app image updated
+
+# Update a specific container within the deployment
+$ kubectl image set deploy my-app --tag v2.0.2 --container sidecar
+```
+
 ## Installation
 
 There are several ways to install `kubectl-image`.
@@ -58,44 +102,6 @@ go install github.com/reedchan7/kubectl-image/src/cmd/kubectl-image@latest
     kubectl plugin list
     ```
     You should see `image` listed as a valid plugin.
-
-## Usage
-
-The plugin follows the standard `kubectl` command structure.
-
-### Get Image
-
-Get the full image name of the first container in a resource.
-
-```sh
-# Get image of a deployment
-kubectl image get deployment my-app
-
-# Get image of a pod
-kubectl image get pod my-pod-12345
-```
-
-To get only the **tag** of the image:
-
-```sh
-kubectl image get deployment my-app --tag
-# Output: v1.2.3
-```
-
-### Set Image
-
-Update the image of the first container in a deployment.
-
-```sh
-# Set a full new image
-kubectl image set deployment my-app new-image:v2.0.0
-
-# Update only the tag, keeping the base image name
-kubectl image set deployment my-app --tag v2.0.1
-
-# Update a specific container within the deployment
-kubectl image set deployment my-app --tag v2.0.2 --container sidecar
-```
 
 ## Development
 
