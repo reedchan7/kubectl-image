@@ -53,12 +53,24 @@ cd "$TMP_DIR"
 
 # Download and extract the archive
 echo "Downloading from $DOWNLOAD_URL"
-curl -fsSLO "$DOWNLOAD_URL"
-tar -zxvf "${PROJECT_NAME}_${OS}_${ARCH}.tar.gz"
+if ! curl -fsSLO "$DOWNLOAD_URL"; then
+  echo "Error: Failed to download $DOWNLOAD_URL"
+  exit 1
+fi
+
+echo "Extracting archive..."
+tar -zxf "${PROJECT_NAME}_${OS}_${ARCH}.tar.gz"
+
+# Verify the binary exists
+if [ ! -f "./$PROJECT_NAME" ]; then
+  echo "Error: Binary $PROJECT_NAME not found in archive"
+  ls -la
+  exit 1
+fi
 
 # Install the binary
 echo "Installing to /usr/local/bin (requires sudo)"
-sudo mv "./${PROJECT_NAME}_${OS}_${ARCH}" /usr/local/bin/$PROJECT_NAME
+sudo mv "./$PROJECT_NAME" /usr/local/bin/
 
 # Clean up
 cd ..
