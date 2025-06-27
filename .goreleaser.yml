@@ -1,0 +1,37 @@
+# .goreleaser.yml
+project_name: kubectl-image
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: kubectl-image
+    main: ./src/cmd
+    binary: kubectl-image
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^build:'
+      - 'Merge pull request'
+      - 'Merge branch'
