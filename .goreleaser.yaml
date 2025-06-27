@@ -5,7 +5,7 @@ before:
 builds:
   - id: kubectl-image
     main: ./src/cmd
-    binary: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    binary: kubectl-image
     env:
       - CGO_ENABLED=0
     goos:
