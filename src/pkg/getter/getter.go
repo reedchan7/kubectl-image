@@ -62,12 +62,12 @@ func extractTag(image string) string {
 	// Find the last colon, which separates the tag
 	lastColon := strings.LastIndex(image, ":")
 	if lastColon == -1 {
-		return "" // No colon, no tag
+		return "latest"
 	}
 
 	// Ensure the part after the colon is a tag, not a port number in the repository
 	if strings.Contains(image[lastColon+1:], "/") {
-		return "" // Contains '/', so it's part of the path (e.g., my.repo:5000/image)
+		return "latest" // Contains '/', so it's part of the path (e.g., my.repo:5000/image)
 	}
 
 	return image[lastColon+1:]
