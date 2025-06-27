@@ -1,4 +1,3 @@
-# .goreleaser.yml
 project_name: kubectl-image
 before:
   hooks:
@@ -6,7 +5,7 @@ before:
 builds:
   - id: kubectl-image
     main: ./src/cmd
-    binary: kubectl-image
+    binary: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
     env:
       - CGO_ENABLED=0
     goos:
