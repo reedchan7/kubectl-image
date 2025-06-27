@@ -1,3 +1,4 @@
+version: 2
 project_name: kubectl-image
 before:
   hooks:
@@ -15,6 +16,11 @@ builds:
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -w -s
+      - -X 'main.version={{ .Version }}'
+      - -X 'main.commit={{ .Commit }}'
+      - -X 'main.date={{ .Date }}'
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"

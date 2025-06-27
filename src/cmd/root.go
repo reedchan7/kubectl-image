@@ -20,6 +20,7 @@ This is a kubectl plugin. Install it and use as:
 	// Add subcommands
 	cmd.AddCommand(createSetCommand())
 	cmd.AddCommand(createGetCommand())
+	cmd.AddCommand(createVersionCommand())
 
 	return cmd
 }

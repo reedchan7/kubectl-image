@@ -6,6 +6,17 @@ BINARY_NAME=kubectl-image
 CMD_PATH=./src/cmd
 BIN_DIR=./bin
 
+# Version information
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dirty")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Build flags
+LDFLAGS = -w -s \
+	-X 'main.version=$(VERSION)' \
+	-X 'main.commit=$(COMMIT)' \
+	-X 'main.date=$(DATE)'
+
 help: ## Print help message
 	@printf "\nUsage: make <command>\n"
 	@grep -F -h "##" $(MAKEFILE_LIST) | grep -F -v grep -F | sed -e 's/\\$$//' | awk 'BEGIN {FS = ":*[[:space:]]*##"}; \
@@ -22,7 +33,10 @@ help: ## Print help message
 
 build: ## Build the Go application
 	@echo "🔨 Building $(BINARY_NAME) plugin..."
-	@CGO_ENABLED=0 go build -ldflags "-w -s" -o $(BIN_DIR)/$(BINARY_NAME) $(CMD_PATH)
+	@echo "Version: $(VERSION)"
+	@echo "Commit: $(COMMIT)"
+	@echo "Date: $(DATE)"
+	@CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME) $(CMD_PATH)
 	@echo "✅ Build completed: $(BIN_DIR)/$(BINARY_NAME)"
 
 clean: ## Clean the project

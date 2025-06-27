@@ -1,5 +1,7 @@
 # kubectl-image
 
+[![Release](https://github.com/reedchan7/kubectl-image/actions/workflows/release.yaml/badge.svg)](https://github.com/reedchan7/kubectl-image/actions/workflows/release.yaml)
+
 A simple, fast, and safe `kubectl` plugin to manage container images in your Kubernetes resources.
 
 ---
@@ -23,11 +25,11 @@ There are several ways to install `kubectl-image`.
 
 ### From GitHub Releases
 
-You can download the pre-compiled binary for your system from the [Releases page](https://github.com/reedchan7/kubectl-image/releases).
+You can install `kubectl-image` with a single command using our installation script. It will automatically download the correct binary for your system from the latest GitHub Release.
 
-1.  Download the archive for your operating system and architecture.
-2.  Unpack the archive.
-3.  Move the `kubectl-image` binary to a directory in your system's `$PATH`.
+```sh
+curl -fsSL https://raw.githubusercontent.com/reedchan7/kubectl-image/main/install.sh | sh
+```
 
 ### With `go install`
 
@@ -111,4 +113,4 @@ make uninstall
 
 ## License
 
-This project is open-source and available under the [Apache-2.0](LICENSE). 
+This project is open-source and available under the [Apache-2.0](LICENSE).
