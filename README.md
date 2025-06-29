@@ -83,9 +83,21 @@ Waiting for deployment my-app rollout to complete...
 
 There are several ways to install `kubectl-image`.
 
-### Krew (TODO)
+### Krew
 
-### From GitHub Releases
+#### Add a custom krew plugin index
+
+```bash
+kubectl krew index add reedchan7 https://github.com/reedchan7/krew-index.git
+```
+
+#### Install this plugin from the source
+
+```bash
+kubectl krew install reedchan7/image
+```
+
+### From Install Script
 
 You can install `kubectl-image` with a single command using our installation script. It will automatically download the correct binary for your system from the latest GitHub Release.
 
