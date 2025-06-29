@@ -12,6 +12,7 @@ A simple, fast, and safe `kubectl` plugin to manage container images in your Kub
 -   **Set Images**: Update the image of a `deployment` safely.
     -   Updates only the first container by default to prevent accidental changes.
     -   Supports updating a specific container with the `--container` flag.
+    -   **Wait for completion**: Use `--wait` to monitor rollout progress until all new pods are ready and old pods are cleaned up.
 -   **Tag-focused**:
     -   Get just the image tag with `get --tag`.
     -   Set just the image tag with `set --tag`.
@@ -46,6 +47,13 @@ v1.2.3
 
 Update the image of the first container in a deployment.
 
+The `--wait` flag monitors the rollout progress in real-time, waiting until:
+1. All new pods are running and ready
+2. All old pods are completely cleaned up
+3. The deployment status reports success
+
+This ensures you know exactly when your deployment is fully complete and ready to serve traffic.
+
 ```sh
 # Set a full new image
 $ kubectl image set deployment my-app busybox:1.36
@@ -59,6 +67,16 @@ deployment.apps/my-app image updated
 
 # Update a specific container within the deployment
 $ kubectl image set deploy my-app --tag v2.0.2 --container sidecar
+
+# Wait for the rollout to complete before returning
+$ kubectl image set deployment my-app busybox:1.37 --wait
+Updating container my-app image from busybox:1.36 to busybox:1.37
+deployment.apps/my-app image updated
+Waiting for deployment my-app rollout to complete...
+ ⏳  Waiting for rollout to finish: 1/2 pods ready, 1 pending, 0 terminating
+ ✅  New pods are ready (took 8.5s), waiting for old pods cleanup...
+ ⏳  Waiting for rollout to finish: 2/2 pods ready, 0 pending, 1 terminating
+ ✅  Deployment my-app successfully rolled out (took 12.3s total, cleanup 3.8s)
 ```
 
 ## Installation
