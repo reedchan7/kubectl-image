@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/reedchan7/kubectl-image/src/pkg/types"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,7 +32,16 @@ func (s *ImageSetter) Set() error {
 
 	switch resourceType {
 	case types.ResourceTypeDeployment:
-		return s.setDeploymentImage()
+		err := s.setDeploymentImage()
+		if err != nil {
+			return err
+		}
+
+		// If wait flag is set, wait for rollout to complete
+		if s.options.Wait {
+			return s.waitForDeploymentRollout()
+		}
+		return nil
 	case types.ResourceTypePod:
 		return fmt.Errorf("direct pod image update is not supported - pods are immutable. Please update the deployment or other controller instead")
 	default:
@@ -121,4 +132,163 @@ func (s *ImageSetter) getNewImageForContainer(currentImage string) string {
 	}
 
 	return currentImage
+}
+
+// waitForDeploymentRollout waits for the deployment rollout to complete
+func (s *ImageSetter) waitForDeploymentRollout() error {
+	ctx := context.TODO()
+	deploymentsClient := s.options.Clientset.AppsV1().Deployments(s.options.Namespace)
+
+	fmt.Printf("Waiting for deployment %s rollout to complete...\n", s.options.ResourceName)
+
+	// Create a ticker for status updates
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	// Create a timeout context
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	startTime := time.Now()
+	var deploymentReadyTime time.Time
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timeout waiting for deployment %s rollout to complete", s.options.ResourceName)
+		case <-ticker.C:
+			// Get the deployment
+			deployment, err := deploymentsClient.Get(ctx, s.options.ResourceName, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get deployment %s: %v", s.options.ResourceName, err)
+			}
+
+			// Check if deployment is ready using the standard Kubernetes deployment conditions
+			deploymentReady := false
+			for _, condition := range deployment.Status.Conditions {
+				if condition.Type == "Progressing" && condition.Status == "True" && condition.Reason == "NewReplicaSetAvailable" {
+					deploymentReady = true
+					break
+				}
+			}
+
+			// Also check numeric status fields
+			if !deploymentReady {
+				deploymentReady = deployment.Status.UpdatedReplicas == deployment.Status.Replicas &&
+					deployment.Status.ReadyReplicas == deployment.Status.Replicas &&
+					deployment.Status.AvailableReplicas == deployment.Status.Replicas &&
+					deployment.Status.ObservedGeneration >= deployment.Generation
+			}
+
+			// Get pods for status information
+			podList, err := s.options.Clientset.CoreV1().Pods(s.options.Namespace).List(ctx, metav1.ListOptions{
+				LabelSelector: metav1.FormatLabelSelector(deployment.Spec.Selector),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to list pods for deployment %s: %v", s.options.ResourceName, err)
+			}
+
+			// Count pods by status
+			runningPods := 0
+			pendingPods := 0
+			terminatingPods := 0
+			otherPods := 0
+
+			for _, pod := range podList.Items {
+				if pod.DeletionTimestamp != nil {
+					terminatingPods++
+				} else {
+					switch pod.Status.Phase {
+					case "Running":
+						// Check if all containers are ready
+						allContainersReady := true
+						for _, containerStatus := range pod.Status.ContainerStatuses {
+							if !containerStatus.Ready {
+								allContainersReady = false
+								break
+							}
+						}
+						if allContainersReady {
+							runningPods++
+						} else {
+							pendingPods++
+						}
+					case "Pending":
+						pendingPods++
+					default:
+						otherPods++
+					}
+				}
+			}
+
+			// Check if rollout is complete
+			rolloutComplete := deploymentReady && runningPods == int(deployment.Status.Replicas) && terminatingPods == 0
+
+			// If deployment is ready but there are still terminating pods, check if we should wait longer
+			if deploymentReady && runningPods == int(deployment.Status.Replicas) && terminatingPods > 0 {
+				// Record when deployment became ready
+				if deploymentReadyTime.IsZero() {
+					deploymentReadyTime = time.Now()
+					duration := deploymentReadyTime.Sub(startTime).Round(time.Millisecond)
+					fmt.Printf(" ✅  New pods are ready (took %v), waiting for old pods cleanup...\n", duration)
+				}
+
+				// If we've been waiting for cleanup for more than 60 seconds, consider it done
+				if time.Since(deploymentReadyTime) > 60*time.Second {
+					totalDuration := time.Since(startTime).Round(time.Millisecond)
+					cleanupDuration := time.Since(deploymentReadyTime).Round(time.Millisecond)
+					fmt.Printf(" ⚠️  Old pods cleanup taking longer than expected, but deployment is ready\n")
+					fmt.Printf(" ✅  Deployment %s successfully rolled out (took %v total, cleanup %v ongoing)\n",
+						s.options.ResourceName, totalDuration, cleanupDuration)
+					return nil
+				}
+			}
+
+			// If rollout is complete, exit
+			if rolloutComplete {
+				totalDuration := time.Since(startTime).Round(time.Millisecond)
+				if deploymentReadyTime.IsZero() {
+					fmt.Printf(" ✅  Deployment %s successfully rolled out (took %v)\n", s.options.ResourceName, totalDuration)
+				} else {
+					cleanupDuration := time.Since(deploymentReadyTime).Round(time.Millisecond)
+					fmt.Printf(" ✅  Deployment %s successfully rolled out (took %v total, cleanup %v)\n",
+						s.options.ResourceName, totalDuration, cleanupDuration)
+				}
+				return nil
+			}
+
+			// Print progress
+			fmt.Printf(" ⏳  Waiting for rollout to finish: %d/%d pods ready, %d pending, %d terminating\n",
+				runningPods, deployment.Status.Replicas, pendingPods, terminatingPods)
+
+			// Print details for problematic pods
+			for _, pod := range podList.Items {
+				if pod.Status.Phase != "Running" || pod.DeletionTimestamp != nil {
+					status := string(pod.Status.Phase)
+					if pod.DeletionTimestamp != nil {
+						status = "Terminating"
+					}
+
+					fmt.Printf(" 🔍  Pod %s status: %s\n", pod.Name, status)
+
+					// Print container statuses for more details
+					for _, containerStatus := range pod.Status.ContainerStatuses {
+						if !containerStatus.Ready {
+							if containerStatus.State.Waiting != nil {
+								fmt.Printf("     Container %s is waiting: %s - %s\n",
+									containerStatus.Name,
+									containerStatus.State.Waiting.Reason,
+									containerStatus.State.Waiting.Message)
+							} else if containerStatus.State.Terminated != nil {
+								fmt.Printf("     Container %s terminated: %s - %s\n",
+									containerStatus.Name,
+									containerStatus.State.Terminated.Reason,
+									containerStatus.State.Terminated.Message)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }

@@ -32,6 +32,9 @@ Examples:
   
   # Set specific container
   kubectl image set deployment myapp --tag v1.0.1 --container app-container
+  
+  # Set image and wait for rollout to complete
+  kubectl image set deployment myapp nginx:1.21 --wait
 `,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -42,6 +45,7 @@ Examples:
 	// Add flags
 	cmd.Flags().StringVarP(&options.Tag, "tag", "t", "", "Image tag to set")
 	cmd.Flags().StringVarP(&options.ContainerName, "container", "c", "", "Container name to update (if not specified, updates first container)")
+	cmd.Flags().BoolVarP(&options.Wait, "wait", "w", false, "Wait for the rollout to complete before returning")
 
 	return cmd
 }

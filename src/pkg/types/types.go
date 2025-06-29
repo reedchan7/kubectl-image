@@ -11,6 +11,7 @@ type Options struct {
 	ContainerName string
 	Namespace     string
 	TagOnly       bool
+	Wait          bool
 
 	Clientset kubernetes.Interface
 }
