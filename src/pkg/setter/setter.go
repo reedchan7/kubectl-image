@@ -3,6 +3,7 @@ package setter
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -104,6 +105,12 @@ func (s *ImageSetter) setDeploymentImage() error {
 // getNewImageForContainer returns the new image name based on options
 func (s *ImageSetter) getNewImageForContainer(currentImage string) string {
 	if s.options.Tag != "" {
+		// Check if the tag actually contains a full image name (common user mistake)
+		if strings.Contains(s.options.Tag, "/") || strings.Contains(s.options.Tag, ":") {
+			fmt.Printf("tag should only contain the version/tag part (e.g., 'v1.0.1', '7eeb161'), not a full image name. Use the image argument instead for full image names\n")
+			os.Exit(1)
+		}
+
 		// If using --tag flag, extract base image name
 		var baseName string
 		if s.options.Image != "" {

@@ -77,5 +77,12 @@ func (v *Validator) validateImageOptions() error {
 		return fmt.Errorf("either image name or --tag must be specified")
 	}
 
+	// Validate tag format if tag is specified
+	if v.options.Tag != "" {
+		if strings.Contains(v.options.Tag, "/") || strings.Contains(v.options.Tag, ":") {
+			return fmt.Errorf("tag should only contain the version/tag part (e.g., 'v1.0.1', '7eeb161'), not a full image name. Use the image argument instead for full image names")
+		}
+	}
+
 	return nil
 }
